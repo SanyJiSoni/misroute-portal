@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { pool } from "../../lib/db";
 
 /* =========================
    🔹 DATA STORES
@@ -12,9 +13,24 @@ import {
 /* =========================
    🔹 HELPERS
 ========================= */
-const normalize = (val: any) =>
+/* =========================
+   🔹 SAFE VALUE NORMALIZER
+========================= */
+const safeNormalize = (val: any) =>
   (val || "").toString().trim().toUpperCase();
 
+/* =========================
+   🔹 SAFE DATE NORMALIZER
+========================= */
+const normalizeDate = (val: any) => {
+  if (!val) return "";
+
+  const d = new Date(val);
+
+  if (isNaN(d.getTime())) return "";
+
+  return d.toISOString().split("T")[0];
+};
 /* =========================
    🔹 BUCKET ENGINE
 ========================= */
@@ -41,10 +57,10 @@ function applyBucketLogic(data: any[]) {
     rows.forEach((row) => {
       let bucket = "";
 
-      const alongRoute = normalize(row.Along_the_route);
-      const misrouteLoc = normalize(row.Misrouted_Captured_location);
-      const destination = normalize(row.Manifest_Destination_name);
-      const shipmentFlag = normalize(row.Shipment_Count_Flag);
+      const alongRoute = safeNormalize(row.Along_the_route);
+const misrouteLoc = safeNormalize(row.Misrouted_Captured_location);
+const destination = safeNormalize(row.Manifest_Destination_name);
+const shipmentFlag = safeNormalize(row.Shipment_Count_Flag);
 
       // 🔴 Priority 1
       if (alongRoute === "YES") {
@@ -195,11 +211,189 @@ export async function POST(req: NextRequest) {
   // Step 1: Bucket logic
   const processedData = applyBucketLogic(body);
 
+// =========================
+// 🔹 SAVE TO DATABASE
+// =========================
+
+for (const row of processedData) {
+  try {
+    // 🔹 Check existing record
+    const existing = await pool.query(
+      `
+      SELECT * FROM processed_data
+      WHERE action_user = $1
+      AND awb_number = $2
+      `,
+      [row.action_user, row.awb_number]
+    );
+
+    // =========================
+    // 🔹 NEW RECORD
+    // =========================
+    if (existing.rows.length === 0) {
+      await pool.query(
+        `
+        INSERT INTO processed_data
+        (
+          action_user,
+          awb_number,
+          manifest_code,
+          bucket,
+          misrouted_date
+        )
+        VALUES ($1, $2, $3, $4, $5)
+        `,
+        [
+          row.action_user,
+          row.awb_number,
+          row.Manifest_Code,
+          row.bucket,
+          row.Misrouted_date,
+        ]
+      );
+
+      console.log(
+        `Inserted: ${row.action_user} - ${row.awb_number}`
+      );
+    }
+
+    // =========================
+    // 🔹 EXISTING RECORD
+    // =========================
+    else {
+      const oldRow = existing.rows[0];
+
+      const isDifferent =
+  safeNormalize(oldRow.bucket) !==
+    safeNormalize(row.bucket) ||
+
+  safeNormalize(oldRow.manifest_code) !==
+    safeNormalize(row.Manifest_Code) ||
+
+  normalizeDate(oldRow.misrouted_date) !==
+    normalizeDate(row.Misrouted_date);
+
+      // 🔴 CONFLICT DETECTED
+      if (isDifferent) {
+        console.log(
+          `⚠ Conflict detected: ${row.action_user} - ${row.awb_number}`
+        );
+
+        // Save audit log
+        await pool.query(
+          `
+          INSERT INTO audit_log
+          (
+            action_user,
+            awb_number,
+            old_bucket,
+            new_bucket,
+            old_manifest,
+            new_manifest,
+            old_date,
+            new_date,
+            warning_type
+          )
+          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+          `,
+          [
+            row.action_user,
+            row.awb_number,
+            oldRow.bucket,
+            row.bucket,
+            oldRow.manifest_code,
+            row.Manifest_Code,
+            oldRow.misrouted_date,
+            row.Misrouted_date,
+            "DATA_CONFLICT",
+          ]
+        );
+      }
+
+      // Exact duplicate
+      else {
+        console.log(
+          `Duplicate skipped: ${row.action_user} - ${row.awb_number}`
+        );
+      }
+    }
+  } catch (err) {
+    console.error("DB Insert Error:", err);
+  }
+}
+
+
+
+
   // Step 2: Aggregation
   const aggregatedData = aggregateData(processedData);
 
 // 🔹 Apply decision logic
 const decisionData = applyDecisionEngine(aggregatedData);
+
+
+// =========================
+// 🔹 CREATE ACTION CASES
+// =========================
+
+for (const row of decisionData) {
+  // Only create cases for actionable rows
+  if (
+    row.action === "Termination" ||
+    row.action === "Warning Letter" ||
+    row.action === "Termination (Quarterly Rule)"
+  ) {
+    const caseId = `CASE-${row.gc}-${row.week}`;
+
+    try {
+      // Check existing case
+      const existingCase = await pool.query(
+        `
+        SELECT * FROM action_cases
+        WHERE case_id = $1
+        `,
+        [caseId]
+      );
+
+      // Create only if not exists
+      if (existingCase.rows.length === 0) {
+        await pool.query(
+          `
+          INSERT INTO action_cases
+          (
+            case_id,
+            gc,
+            action_type,
+            week,
+            awb_count,
+            frequency,
+            final_decision
+          )
+          VALUES ($1,$2,$3,$4,$5,$6,$7)
+          `,
+          [
+            caseId,
+            row.gc,
+            row.action,
+            row.week,
+            row.awb_count,
+            row.frequency,
+            row.action,
+          ]
+        );
+
+        console.log(`Case Created: ${caseId}`);
+      } else {
+        console.log(`Case already exists: ${caseId}`);
+      }
+    } catch (err) {
+      console.error("Case Creation Error:", err);
+    }
+  }
+}
+
+
+
 
   // Step 3: Store
 // Update processed data
