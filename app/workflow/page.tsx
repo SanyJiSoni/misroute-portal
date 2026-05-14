@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useSession }
+from "next-auth/react";
 
 export default function WorkflowPage() {
   const [cases, setCases] = useState<any[]>([]);
@@ -17,7 +19,7 @@ const [selectedCase, setSelectedCase] =
     const res = await fetch("/api/cases");
     const data = await res.json();
 
-    setCases(data);
+    setCases(Array.isArray(data) ? data : []);
   }
 
   useEffect(() => {
@@ -154,7 +156,8 @@ async function loadActivity(caseId: string) {
         </thead>
 
         <tbody>
-          {cases.map((row) => (
+          {Array.isArray(cases) &&
+  cases.map((row) => (
             <tr key={row.case_id}>
               <td>{row.case_id}</td>
 

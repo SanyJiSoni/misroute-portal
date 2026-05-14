@@ -21,6 +21,23 @@ export default function Dashboard() {
         Dashboard - Uploaded Data
       </h1>
 
+<div
+  style={{
+    marginTop: "20px",
+    marginBottom: "20px",
+    display: "flex",
+    gap: "10px",
+  }}
+>
+  <a href="/upload">
+    <button>Upload Data</button>
+  </a>
+
+  <a href="/workflow">
+    <button>Workflow</button>
+  </a>
+</div>
+
       {data.length === 0 ? (
         <p style={{ marginTop: "20px" }}>No data available</p>
       ) : (

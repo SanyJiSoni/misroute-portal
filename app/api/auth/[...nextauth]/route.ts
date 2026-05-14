@@ -1,7 +1,7 @@
 import NextAuth from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 
-import { pool } from "../../../lib/db";
+import { pool } from "@/app/lib/db";
 
 export const authOptions = {
   providers: [
@@ -9,22 +9,18 @@ export const authOptions = {
       name: "Credentials",
 
       credentials: {
-        email: {},
+        employee_id: {},
         password: {},
       },
 
       async authorize(credentials) {
-        if (!credentials) {
-          return null;
-        }
-
         const result = await pool.query(
           `
           SELECT *
           FROM users
-          WHERE email = $1
+          WHERE employee_id = $1
           `,
-          [credentials.email]
+          [credentials?.employee_id]
         );
 
         if (result.rows.length === 0) {
@@ -33,17 +29,25 @@ export const authOptions = {
 
         const user = result.rows[0];
 
-        // TEMP plain password check
-        if (user.password !== credentials.password) {
+        if (
+          user.password !==
+          credentials?.password
+        ) {
+          return null;
+        }
+
+        if (!user.is_active) {
           return null;
         }
 
         return {
-          id: user.employee_id,
+          id: user.id,
+          employee_id:
+            user.employee_id,
           name: user.full_name,
-          email: user.email,
           role: user.role,
-          site: user.assigned_site,
+          assigned_site:
+            user.assigned_site,
         };
       },
     }),
@@ -53,13 +57,50 @@ export const authOptions = {
     strategy: "jwt",
   },
 
-  session: {
-    strategy: "jwt",
+  callbacks: {
+    async jwt({ token, user }) {
+      if (user) {
+        token.role = user.role;
+
+        token.employee_id =
+          user.employee_id;
+
+        token.assigned_site =
+          user.assigned_site;
+      }
+
+      return token;
+    },
+
+    async session({
+      session,
+      token,
+    }) {
+      session.user.role =
+        token.role as string;
+
+      session.user.employee_id =
+        token.employee_id as string;
+
+      session.user.assigned_site =
+        token.assigned_site as string;
+
+      return session;
+    },
   },
 
-  secret: "MISROUTE_SECRET_KEY",
+  pages: {
+    signIn: "/login",
+  },
+
+  secret:
+    process.env.NEXTAUTH_SECRET,
 };
 
-const handler = NextAuth(authOptions);
+const handler =
+  NextAuth(authOptions);
 
-export { handler as GET, handler as POST };
+export {
+  handler as GET,
+  handler as POST,
+};
