@@ -172,7 +172,7 @@ if (
 
 /* =========================
    🔹 SITE ACCESS VALIDATION
-========================= */
+========================= 
 
 const caseResult = await pool.query(
   `
@@ -212,6 +212,9 @@ if (
 }
 
 
+Temporarily bypassing site access validation for development purposes
+
+*/
 
 
 

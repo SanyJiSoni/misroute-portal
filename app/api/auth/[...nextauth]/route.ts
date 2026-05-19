@@ -52,19 +52,15 @@ export const authOptions = {
       },
     }),
   ],
-
-  session: {
-    strategy: "jwt",
-  },
+session: {
+  strategy: "jwt" as const,
+},
 
   callbacks: {
     async jwt({
-  token,
-  user,
-}: {
-  token: any;
-  user: any;
-}) {
+      token,
+      user,
+    }: any) {
       if (user) {
         token.role = user.role;
 
@@ -78,21 +74,18 @@ export const authOptions = {
       return token;
     },
 
-async session({
-  session,
-  token,
-}: {
-  session: any;
-  token: any;
-}) {
+    async session({
+      session,
+      token,
+    }: any) {
       session.user.role =
-        token.role as string;
+        token.role;
 
       session.user.employee_id =
-        token.employee_id as string;
+        token.employee_id;
 
       session.user.assigned_site =
-        token.assigned_site as string;
+        token.assigned_site;
 
       return session;
     },
