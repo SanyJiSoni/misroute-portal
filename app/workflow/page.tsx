@@ -108,6 +108,8 @@ async function loadActivity(caseId: string) {
   const data = await res.json();
 
   setActivityLogs(data);
+
+
 }
 
 
@@ -296,53 +298,118 @@ onClick={() => {
       {selectedCase && (
   <div
     style={{
-      marginTop: "40px",
-      border: "1px solid #ccc",
-      padding: "20px",
-      borderRadius: "10px",
-      background: "#f9f9f9",
+      position: "fixed",
+      top: 0,
+      left: 0,
+      width: "100%",
+      height: "100%",
+      background:
+        "rgba(0,0,0,0.5)",
+      display: "flex",
+      justifyContent: "center",
+      alignItems: "center",
+      zIndex: 999,
     }}
   >
-    <h2>
-      Activity Timeline: {selectedCase}
-    </h2>
-
-    {activityLogs.length === 0 && (
-      <p>No activity found.</p>
-    )}
-
-    {activityLogs.map((log, i) => (
+    <div
+      style={{
+        background: "white",
+        padding: "20px",
+        borderRadius: "10px",
+        width: "600px",
+        maxHeight: "80vh",
+        overflowY: "auto",
+      }}
+    >
       <div
-        key={i}
         style={{
-          borderBottom:
-            "1px solid #ddd",
-          padding: "10px 0",
+          display: "flex",
+          justifyContent:
+            "space-between",
+          alignItems: "center",
         }}
       >
-        <p>
-          <strong>Actor:</strong>{" "}
-          {log.actor_type}
-        </p>
+        <h2>
+          Activity Timeline
+        </h2>
 
-        <p>
-          <strong>Action:</strong>{" "}
-          {log.action_taken}
-        </p>
+        <button
+          onClick={() => {
+            setSelectedCase(
+              null
+            );
 
-        <p>
-          <strong>Remarks:</strong>{" "}
-          {log.remarks}
-        </p>
-
-        <p>
-          <strong>Time:</strong>{" "}
-          {new Date(
-            log.created_at
-          ).toLocaleString()}
-        </p>
+            setActivityLogs(
+              []
+            );
+          }}
+        >
+          Close
+        </button>
       </div>
-    ))}
+
+      <p>
+        <strong>
+          Case:
+        </strong>{" "}
+        {selectedCase}
+      </p>
+
+      {activityLogs.length ===
+        0 && (
+        <p>
+          No actions taken yet.
+        </p>
+      )}
+
+      {activityLogs.map(
+        (log, i) => (
+          <div
+            key={i}
+            style={{
+              borderBottom:
+                "1px solid #ddd",
+              padding:
+                "10px 0",
+            }}
+          >
+            <p>
+              <strong>
+                Actor:
+              </strong>{" "}
+              {
+                log.actor_type
+              }
+            </p>
+
+            <p>
+              <strong>
+                Action:
+              </strong>{" "}
+              {
+                log.action_taken
+              }
+            </p>
+
+            <p>
+              <strong>
+                Remarks:
+              </strong>{" "}
+              {log.remarks}
+            </p>
+
+            <p>
+              <strong>
+                Time:
+              </strong>{" "}
+              {new Date(
+                log.created_at
+              ).toLocaleString()}
+            </p>
+          </div>
+        )
+      )}
+    </div>
   </div>
 )}
     </div>
