@@ -1,9 +1,12 @@
 import NextAuth from "next-auth";
-import CredentialsProvider from "next-auth/providers/credentials";
 
-import { pool } from "@/app/lib/db";
+import CredentialsProvider
+from "next-auth/providers/credentials";
 
-export const authOptions = {
+import { pool }
+from "@/app/lib/db";
+
+export const authOptions: any = {
   providers: [
     CredentialsProvider({
       name: "Credentials",
@@ -14,20 +17,26 @@ export const authOptions = {
       },
 
       async authorize(credentials) {
-        const result = await pool.query(
-          `
-          SELECT *
-          FROM users
-          WHERE employee_id = $1
-          `,
-          [credentials?.employee_id]
-        );
+        const result =
+          await pool.query(
+            `
+            SELECT *
+            FROM users
+            WHERE employee_id = $1
+            `,
+            [
+              credentials?.employee_id,
+            ]
+          );
 
-        if (result.rows.length === 0) {
+        if (
+          result.rows.length === 0
+        ) {
           return null;
         }
 
-        const user = result.rows[0];
+        const user =
+          result.rows[0];
 
         if (
           user.password !==
@@ -42,27 +51,35 @@ export const authOptions = {
 
         return {
           id: user.id,
+
           employee_id:
             user.employee_id,
+
           name: user.full_name,
+
           role: user.role,
+
           assigned_site:
             user.assigned_site,
         };
       },
     }),
   ],
-session: {
-  strategy: "jwt" as const,
-},
+
+  session: {
+    strategy: "jwt",
+  },
 
   callbacks: {
-    async jwt({
-      token,
-      user,
-    }: any) {
+    async jwt(params: any) {
+      const {
+        token,
+        user,
+      } = params;
+
       if (user) {
-        token.role = user.role;
+        token.role =
+          user.role;
 
         token.employee_id =
           user.employee_id;
@@ -74,10 +91,14 @@ session: {
       return token;
     },
 
-    async session({
-      session,
-      token,
-    }: any) {
+    async session(
+      params: any
+    ) {
+      const {
+        session,
+        token,
+      } = params;
+
       session.user.role =
         token.role;
 
