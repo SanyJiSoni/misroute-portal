@@ -430,12 +430,58 @@ decisionData.forEach((row) => {
 /* =========================
    🔹 API: GET
 ========================= */
-export async function GET(req: NextRequest) {
-  const type = req.nextUrl.searchParams.get("type");
+export async function GET(
+  req: NextRequest
+) {
+  const type =
+    req.nextUrl.searchParams.get(
+      "type"
+    );
 
-  if (type === "aggregated") {
-    return NextResponse.json(aggregatedDataStore);
+  try {
+    // =========================
+    // 🔹 AGGREGATED DATA
+    // =========================
+    if (type === "aggregated") {
+      const result =
+        await pool.query(`
+          SELECT
+            action_user as gc,
+            COUNT(*) as awb_count
+          FROM processed_data
+          GROUP BY action_user
+        `);
+
+      return NextResponse.json(
+        result.rows
+      );
+    }
+
+    // =========================
+    // 🔹 RAW DATA
+    // =========================
+    const result =
+      await pool.query(`
+        SELECT *
+        FROM processed_data
+        ORDER BY id DESC
+      `);
+
+    return NextResponse.json(
+      result.rows
+    );
+  } catch (err) {
+    console.error(
+      "GET API Error:",
+      err
+    );
+
+    return NextResponse.json(
+      {
+        error:
+          "Failed to fetch data",
+      },
+      { status: 500 }
+    );
   }
-
-  return NextResponse.json(processedDataStore);
 }
