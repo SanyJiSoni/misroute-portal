@@ -9,8 +9,11 @@ export default function WorkflowPage() {
   const [activityLogs, setActivityLogs] =
   useState<any[]>([]);
 
-const [selectedCase, setSelectedCase] =
-  useState("");
+const [selectedCase,
+  setSelectedCase] =
+  useState<string | null>(
+    null
+  );
   const [remarks, setRemarks] = useState<
     Record<string, string>
   >({});
